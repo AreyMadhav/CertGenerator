@@ -1,17 +1,21 @@
-from flask import Flask, render_template, request, send_from_directory, flash, redirect
+from flask import Flask, render_template, request, send_from_directory, flash, redirect, url_for, session
+from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
 import os
+
+UPLOAD_FOLDER = 'C:/Users/minec/Downloads/CertGen/uploads'
 
 app = Flask(__name__)
 app.secret_key = 'SecretKeyLOL'
 
 # Configuration
-UPLOAD_FOLDER = 'uploads'
 STATIC_FOLDER = 'static'
+TEMPLATE_FOLDER = 'templates'  # New variable for templates folder
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['STATIC_FOLDER'] = STATIC_FOLDER
+app.config['TEMPLATE_FOLDER'] = TEMPLATE_FOLDER  # New configuration for templates folder
 
 
 def allowed_file(filename):
@@ -45,33 +49,41 @@ def add_text_to_image(image_path, name, output_path, font_path=None, font_size=3
 
 
 @app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        # Hardcoded username and password
+        if username == 'admin' and password == 'password':
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            return 'Invalid username or password'
+
+    return render_template('login.html')
+
+
+@app.route('/index', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        names = request.form.get('names').split(',')
+        # Process form data and generate certificates
+        # Redirect to the app route after processing
+        return redirect(url_for('app_page'))
+    return render_template('index.html')
 
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
 
-        if file and allowed_file(file.filename):
-            for name in names:
-                name = name.strip()
-                filename = secure_filename(file.filename)
-                image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                output_path = os.path.join(app.config['STATIC_FOLDER'], f'{name.replace(" ", "_")}_certificate.jpg')
-                file.save(image_path)
-                if add_text_to_image(image_path, name, output_path, font_path='arial.ttf'):
-                    os.remove(image_path)
-            return render_template('index.html', certificates=names)
-        else:
-            flash('Invalid file format. Allowed formats are jpg, jpeg, png')
-            return redirect(request.url)
+@app.route('/app')
+def app_page():
+    # Your app logic here
+    return 'This is the app page'
 
-    return render_template('index.html', certificates=[])
+
+@app.route('/logout')
+def logout():
+    # Handle logout logic here
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
 
 
 @app.route('/static/<path:filename>')
@@ -80,4 +92,4 @@ def static_files(filename):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port = 5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
